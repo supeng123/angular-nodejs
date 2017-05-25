@@ -1,9 +1,12 @@
 var express = require('express');
 var router = express.Router();
+var User = require('../models/user');
 var Message = require('../models/message');
+var jwt = require('jsonwebtoken');
 
 router.get('/', function(req, res, next){
     Message.find()
+        .populate('user', 'firstName')
         .exec(function(err, messages){
             if (err) {
                 return res.status(500).json({
@@ -15,31 +18,57 @@ router.get('/', function(req, res, next){
                 message: 'Success',
                 obj: messages
             });
-
         });
+});
 
+router.use('/', function (req, res, next) {
+    jwt.verify(req.query.token, 'secret', function (err, decoded) {
+        if(err){
+            return res.status(401).json({
+                title: 'Not Authenticated',
+                error: err
+            });
+        }
+        next();
+    })
 });
 
 
 router.post('/', function (req, res, next) {
-    var message = new Message({
-        content: req.body.content
-    });
-    message.save(function (err, result) {
-        if (err) {
+    var decoded = jwt.decode(req.query.token);
+    User.findById(decoded.user._id, function (err, user) {
+        if (err){
             return res.status(500).json({
                 title:'An error occured',
                 error: err
             });
         }
-        res.status(201).json({
-            message: 'Saved message',
-            obj: result
+
+        var message = new Message({
+            content: req.body.content,
+            user: user //将 user保存到message的schema中
         });
-    })
+        message.save(function (err, result) {
+            if (err) {
+                return res.status(500).json({
+                    title:'An error occured',
+                    error: err
+                });
+            }
+
+            user.messages.push(result);//将 message保存到user的schema中
+            user.save();
+
+            res.status(201).json({
+                message: 'Saved message',
+                obj: result
+            });
+        })
+    });
 });
 
 router.patch('/:id', function (req, res, next) {
+    var decoded = jwt.decode(req.query.token);
     Message.findById(req.params.id, function (err, message) {
         if (err) {
             return res.status(500).json({
@@ -54,7 +83,12 @@ router.patch('/:id', function (req, res, next) {
                 error: {message: 'Message not found'}
             });
         }
-
+        if (message.user != decoded.user._id) {
+            return res.status(401).json({
+                title: 'Not Authenticated',
+                error: {message: 'Users do not match'}
+            });
+        }
         message.content = req.body.content;
         message.save(function (err , result) {
             if (err) {
@@ -72,8 +106,8 @@ router.patch('/:id', function (req, res, next) {
 });
 
 router.delete('/:id', function (req ,res, next) {
+    var decoded = jwt.decode(req.query.token);
     Message.findById(req.params.id, function (err, message) {
-
         if (err) {
             return res.status(500).json({
                 title: 'An error occured',
@@ -85,6 +119,13 @@ router.delete('/:id', function (req ,res, next) {
             return res.status(500).json({
                 title: 'no message found',
                 error: {message: 'Message not found'}
+            });
+        }
+
+        if (message.user != decoded.user._id) {
+            return res.status(401).json({
+                title: 'Not Authenticated',
+                error: {message: 'Users do not match'}
             });
         }
 
@@ -102,7 +143,6 @@ router.delete('/:id', function (req ,res, next) {
         });
     });
 });
-
 
 
 module.exports = router;

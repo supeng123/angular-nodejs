@@ -40,7 +40,7 @@ export class MessageInputComponent implements OnInit{
             this.message = null;
         }else {
             if (form.value.content) {
-                const message = new Message(form.value.content, 'Sunminjuan');
+                const message = new Message(form.value.content, 'suj');
                 this.messageService.addMessage(message)
                     .subscribe(
                         data => console.log(data),
