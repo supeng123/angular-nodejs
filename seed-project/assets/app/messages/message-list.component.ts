@@ -9,12 +9,14 @@ import {MessageService} from "./message.service";
     selector: 'app-message-list',
     template: `
         <app-message [message]="message"
-                     
-                    *ngFor="let message of messages"></app-message>
+            *ngFor="let message of messages | paginate:{itemsPerPage:2, currentPage:p}">
+        </app-message>
+        <pagination-controls (pageChange)="p = $event"></pagination-controls>
         `
 })
 export class MessageListComponent implements OnInit {
     messages: Message[];
+    p: number =1;
     constructor(private MessageService: MessageService) {}
     ngOnInit() {
         this.MessageService.getMessage().subscribe(

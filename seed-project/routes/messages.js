@@ -3,6 +3,18 @@ var router = express.Router();
 var User = require('../models/user');
 var Message = require('../models/message');
 var jwt = require('jsonwebtoken');
+var multer = require('multer');
+var DIR = './uploads/';
+var storage = multer.diskStorage({ //multers disk storage settings
+    destination: function (req, file, cb) {
+        cb(null, DIR);
+    },
+    filename: function (req, file, cb) {
+        var datetimestamp = Date.now();
+        cb(null, file.fieldname + '-' + datetimestamp + '.' + file.originalname.split('.')[file.originalname.split('.').length -1]);
+    }
+});
+var upload = multer({storage: storage}).single('photo');
 
 router.get('/', function(req, res, next){
     Message.find()
@@ -20,6 +32,7 @@ router.get('/', function(req, res, next){
             });
         });
 });
+
 
 router.use('/', function (req, res, next) {
     jwt.verify(req.query.token, 'secret', function (err, decoded) {
@@ -141,6 +154,20 @@ router.delete('/:id', function (req ,res, next) {
                 obj: result
             });
         });
+    });
+});
+
+router.post('/upload', function (req, res, next) {
+    var path = '';
+    upload(req, res, function (err) {
+        if (err) {
+            // An error occurred when uploading
+            console.log(err);
+            return res.status(422).send("an Error occured")
+        }
+        // No error occured.
+        console.log(req.file);
+        return res.send("Upload Completed for "+path);
     });
 });
 
